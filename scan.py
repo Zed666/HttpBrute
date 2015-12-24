@@ -7,13 +7,14 @@ import multiprocessing;
 import queue;
 import time;
 import argparse;
+import random;
 
 #Эту функцию юзают потоки, передаем номер потока, очередь, и урл шо сканим
-def Scan(i, DirList, url):
+def Scan(i, DirList, url, agent):
 	#Бэзконечный цикл
 	while True:
-		#Небольгая пауза
-		time.sleep(0.1);
+		#Небольшая случайная пауза
+		time.sleep(random.randint(0, 3));
 		#Если очередь пуста то
 		if (DirList.empty() == True):
 			#Пишем что такой поток закончил
@@ -22,8 +23,14 @@ def Scan(i, DirList, url):
 			break;
 		#Берем из очереди диру или файл
 		Dir = DirList.get();
-		#Делаем запрос, обрезая символ переноса строки
-		r = requests.get(url + Dir[:-1]);
+		#Заголовки
+		headers = {'User-Agent': 'none',
+		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+		'Accept-Language':'en-US,en;q=0.5'}
+		#Берем случайный юзерагент
+		headers['User-Agent'] = random.choice(agent);
+		#Делаем запрос, обрезая символ переноса строки +заголовки
+		r = requests.get(url + Dir[:-1], headers=headers);
 		#Если файл или дира есть то
 		if (r.status_code == requests.codes.ok):
 			#Выводим их
@@ -50,6 +57,8 @@ def Main():
 	else:
 		#Список для потоков
 		jobs = [];
+		#Список агентов
+		agents = [];
 		#Создаем очередь
 		DirList = multiprocessing.JoinableQueue()
 		#Открываем файл для чтения
@@ -58,10 +67,16 @@ def Main():
 		for line in DirFile.readlines():
 			#Добавляем в очередь ип из списка 
 			DirList.put(line);
+		#Открываем файл для чтения юзерагентов
+		UserAgentFile = open('agents.txt', 'r');
+		#Проходимся циклом по всем строкам
+		for UserAgent in UserAgentFile.readlines():
+			#Добавляем в список
+			agents.append(UserAgent);
 		print ('Scan starting....');
 		#Создаем потоки
 		for i in range(int(args.Thread)):
-			p = multiprocessing.Process(target=Scan, args=(i, DirList, args.URL));
+			p = multiprocessing.Process(target=Scan, args=(i, DirList, args.URL, agents));
 			jobs.append(p);
 			p.start();
 		#Ждем их завершения
